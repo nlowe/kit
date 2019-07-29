@@ -21,6 +21,9 @@ import (
 
 const (
 	maxConcurrentRequests = 20
+
+	// The label whose value signifies the CloudWatch unit name to use
+	UnitLabel = "__cw_unit"
 )
 
 // CloudWatch receives metrics observations and forwards them to CloudWatch.
@@ -138,6 +141,7 @@ func (cw *CloudWatch) Send() error {
 			MetricName:      aws.String(name),
 			Dimensions:      makeDimensions(lvs...),
 			StatisticValues: stats(values),
+			Unit:            unit(lvs...),
 			Timestamp:       aws.Time(now),
 		})
 		return true
@@ -211,13 +215,27 @@ func stats(a []float64) *cloudwatch.StatisticSet {
 	}
 }
 
+func unit(labelValues ...string) cloudwatch.StandardUnit {
+    for i := 0; i < len(labelValues); i += 2 {
+        if labelValues[i] == UnitLabel {
+            return cloudwatch.StandardUnit(labelValues[i+1])
+        }
+    }
+
+    return cloudwatch.StandardUnitNone
+}
+
 func makeDimensions(labelValues ...string) []cloudwatch.Dimension {
 	dimensions := make([]cloudwatch.Dimension, len(labelValues)/2)
 	for i, j := 0, 0; i < len(labelValues); i, j = i+2, j+1 {
-		dimensions[j] = cloudwatch.Dimension{
-			Name:  aws.String(labelValues[i]),
-			Value: aws.String(labelValues[i+1]),
-		}
+	    if labelValues[i] != UnitLabel {
+            dimensions[j] = cloudwatch.Dimension{
+                Name:  aws.String(labelValues[i]),
+                Value: aws.String(labelValues[i+1]),
+            }
+        } else {
+            j--
+        }
 	}
 	return dimensions
 }

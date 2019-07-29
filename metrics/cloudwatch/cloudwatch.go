@@ -20,6 +20,9 @@ import (
 
 const (
 	maxConcurrentRequests = 20
+
+    // The label whose value signifies the CloudWatch unit name to use
+	UnitLabel = "__cw_unit"
 )
 
 type Percentiles []struct {
@@ -205,6 +208,7 @@ func (cw *CloudWatch) Send() error {
 				MetricName: aws.String(fmt.Sprintf("%s_%s", name, formatPerc(perc))),
 				Dimensions: makeDimensions(lvs...),
 				Value:      aws.Float64(value),
+				Unit:       unit(lvs...),
 				Timestamp:  aws.Time(now),
 			})
 		}
@@ -337,13 +341,27 @@ func (h *Histogram) Observe(value float64) {
 	h.obs(h.name, h.lvs, value)
 }
 
+func unit(labelValues ...string) *string {
+    for i := 0; i < len(labelValues); i += 2 {
+        if labelValues[i] == UnitLabel {
+            return aws.String(labelValues[i+1])
+        }
+    }
+
+    return aws.String(cloudwatch.StandardUnitNone)
+}
+
 func makeDimensions(labelValues ...string) []*cloudwatch.Dimension {
 	dimensions := make([]*cloudwatch.Dimension, len(labelValues)/2)
 	for i, j := 0, 0; i < len(labelValues); i, j = i+2, j+1 {
-		dimensions[j] = &cloudwatch.Dimension{
-			Name:  aws.String(labelValues[i]),
-			Value: aws.String(labelValues[i+1]),
-		}
+	    if labelValues[i] != UnitLabel {
+            dimensions[j] = &cloudwatch.Dimension{
+                Name:  aws.String(labelValues[i]),
+                Value: aws.String(labelValues[i+1]),
+            }
+        } else {
+            j--
+        }
 	}
 	return dimensions
 }
