@@ -226,15 +226,13 @@ func unit(labelValues ...string) cloudwatch.StandardUnit {
 }
 
 func makeDimensions(labelValues ...string) []cloudwatch.Dimension {
-	dimensions := make([]cloudwatch.Dimension, len(labelValues)/2)
-	for i, j := 0, 0; i < len(labelValues); i, j = i+2, j+1 {
+	dimensions := make([]cloudwatch.Dimension, 0, len(labelValues)/2)
+	for i := 0; i < len(labelValues); i+=2 {
 	    if labelValues[i] != UnitLabel {
-            dimensions[j] = cloudwatch.Dimension{
+            dimensions = append(dimensions, cloudwatch.Dimension{
                 Name:  aws.String(labelValues[i]),
                 Value: aws.String(labelValues[i+1]),
-            }
-        } else {
-            j--
+            })
         }
 	}
 	return dimensions
